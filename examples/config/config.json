@@ -1,0 +1,21 @@
+{
+    "proxies": [
+        {
+            "app_name": "App 1",
+            "app_uri": "http://127.0.0.1:5502",
+            "override_file": "Absolute path to override examples.wasm",
+            "rule": {
+                "path": "/",
+                "type": "exact"
+            }
+        },
+        {
+            "app_name": "App 2",
+            "app_uri": "http://127.0.0.1:5501/",
+            "rule": {
+                "path": "/app2",
+                "type": "contain"
+            }
+        }
+    ]
+}

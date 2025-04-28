@@ -1,0 +1,16 @@
+[package]
+name = "rilot"
+version = "0.1.0"
+edition = "2021"
+authors = ["Maninderpreet Singh <maninderpreetchanna@gmail.com>"]
+description = "Rilot - A Rust-based high-performance reverse proxy with dynamic WebAssembly overrides."
+license = "MIT"
+repository = "https://github.com/maninderpreetsingh/rilot"
+
+
+[dependencies]
+hyper = { version = "0.14", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
+wasmtime = "9.0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
