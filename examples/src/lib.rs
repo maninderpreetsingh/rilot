@@ -2,7 +2,7 @@ use serde::Serialize;
 
 #[derive(Serialize)]
 struct WasmResponse {
-    app_url: String,
+    app_url: Option<String>,
     headers_to_update: std::collections::HashMap<String, String>,
     headers_to_remove: Vec<String>,
 }
@@ -21,9 +21,10 @@ pub extern "C" fn modify_request(ptr: *mut u8, len: usize) -> i32 {
         let mut headers = std::collections::HashMap::new();
         headers.insert("X-Debug-Path".to_string(), path.to_string());
         headers.insert("X-Debug-Method".to_string(), method.to_string());
+        headers.insert("X-Via-Rilot".to_string(), "5".to_string());
 
         let response = WasmResponse {
-            app_url: "http://127.0.0.1:5501/".to_string(), // change to any backend dynamically
+            app_url: None, // change to any backend dynamically if needed else default based on config.json
             headers_to_update: headers,
             headers_to_remove: vec![],
         };

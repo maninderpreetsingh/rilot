@@ -118,11 +118,9 @@ async fn handle_request(mut req: Request<Body>, config: Arc<config::Config>) -> 
                     }
                 }
             }
-
-            // TODO:: update body?
         }
 
-        // Direct forwarding
+        // Prepare new request
         let method = req.method().clone();
         let headers = req.headers().clone();
         let body = req.into_body();
@@ -143,12 +141,20 @@ async fn handle_request(mut req: Request<Body>, config: Arc<config::Config>) -> 
         let resp_result = client.request(new_req).await;
 
         match resp_result {
-            Ok(mut backend_resp) => {
-                let backend_body = hyper::body::to_bytes(backend_resp.body_mut()).await.unwrap_or_default();
-                Ok(Response::builder()
-                    .status(backend_resp.status())
-                    .body(Body::from(backend_body))
-                    .expect("Failed to build final response"))
+            Ok(backend_resp) => {
+                // Forward body as-is, with original headers
+                let status = backend_resp.status();
+                let headers = backend_resp.headers().clone();
+                let body = backend_resp.into_body();
+
+                let mut response = Response::builder()
+                    .status(status)
+                    .body(body)
+                    .expect("Failed to build final response");
+
+                *response.headers_mut() = headers;
+
+                Ok(response)
             }
             Err(_) => Ok(Response::builder()
                 .status(502)
