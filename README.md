@@ -1,27 +1,131 @@
-Rilot
+# Rilot
 
-🚀 Rilot is a fast, lightweight, Rust-based reverse proxy with optional dynamic WebAssembly (WASM) overrides.Built for multi frontends and backend microservices — designed for speed, flexibility, and simplicity.
+⚡ Fast, lightweight, and pluggable reverse proxy with WebAssembly (WASM) overrides.
+Built with ❤️ in Rust for microservices, frontend multi-zone architectures, and blazing edge performance.
 
 ---
 
 ## ✨ Features
 
-- ⚡ High-performance proxy built with [Hyper](https://hyper.rs/) and [Tokio](https://tokio.rs/)
-- 🔥 Dynamic path-based routing (exact or contain match rules)
-- 🔧 Optional WebAssembly (WASM) override per app route (inject custom header logic, app URL switching)
-- 🛡️ Minimal memory footprint
+- 🚀 Hot-reload WebAssembly overrides (no restart needed)
+- 🛡️ Minimal memory proxy with Hyper + Tokio
+- 🔥 Per-path dynamic routing (`contain` / `exact` match)
+- 🔄 Seamless header manipulation without backend code changes
 - 📝 Fully customizable with simple `config.json`
-- 📦 Docker-ready(coming soon)
-- 🔒 Licensed under MIT (no liability, use at your own risk)
+- ⚡ Ultra-fast cold start and live updates
+- 🛠️ Built-in Docker support(coming soon)
+- 🔒 MIT Licensed (no liability, use at your own risk)
+
+
+---
+
+## 🛠️ How it Works
+
+Rilot acts as a **frontdoor proxy**,
+Routing based on URL paths,
+Injecting WebAssembly (WASM) modules dynamically to modify behavior without server restart.
+
+```plaintext
+[User Request]
+     ↓
+[Rilot Proxy] ──(optional WASM logic)──> [App]
+```
+
+✅ Simple.
+✅ Flexible.
+✅ Powerful.
 
 ---
 
 ## 📦 Installation
 
-git clone https://github.com/yourusername/rilot.git
+### Using NPX (coming soon)
+
+```bash
+npx rilot
+```
+
+or install globally (coming soon):
+
+```bash
+npm install -g rilot
+```
+
+### Manual (Cargo)
+
+```bash
+git clone https://github.com/maninderpreetsingh/rilot.git
 cd rilot
 cargo build --release
+```
 
+---
+
+## 🚀 Quick Start Example
+
+1. Create a folder `my_app/`
+
+```plaintext
+my_app/
+ ├── config.json
+ ├── Dockerfile (optional) -> if you want to deploy docker container
+ └── runtime/override_sample.wasm (optional) -> build wasm with (AssemblyScript / Rust / )
+```
+
+2. Example `config.json`:
+
+```json
+{
+    "proxies": [
+        {
+            "app_name": "App 1",
+            "app_uri": "http://127.0.0.1:5502",
+            "override_file": "/path/to/override.wasm",
+            "rule": {
+                "path": "/",
+                "type": "exact"
+            }
+        },
+        {
+            "app_name": "App 2",
+            "app_uri": "http://127.0.0.1:5501/",
+            "rule": {
+                "path": "/app2",
+                "type": "contain"
+            }
+        }
+    ]
+}
+```
+
+3. Run Rilot:
+
+```bash
+cargo run ./my_app/config.json
+```
+
+✅ Your proxy server will start at `http://127.0.0.1:8080`!
+
+---
+
+## ⚙️ Configuration Explained
+
+- `app_name`: Friendly name for your service
+- `app_uri`: Target backend URL
+- `override_file`: Optional WebAssembly module to override headers / routing
+- `rule.path`: URL path to match
+- `rule.type`: `"exact"` or `"contain"`
+
+✅ No complicated config — simple and powerful.
+
+---
+
+## 🔥 Live Hot-Reload of Overrides
+
+Every request dynamically loads the `.wasm` file!
+✅ No server restart needed
+✅ Modify your override logic live
+✅ Instant effect on next request
 
 ---
 
