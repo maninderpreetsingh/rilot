@@ -125,10 +125,27 @@ async fn handle_request(mut req: Request<Body>, config: Arc<config::Config>) -> 
         let headers = req.headers().clone();
         let body = req.into_body();
 
-        let backend_uri = format!("{}{}", target_backend, path)
-            .parse::<Uri>()
-            .expect("Failed to build backend URI");
-
+        let backend_uri = match proxy.rewrite.as_str() {
+            "none" => {
+                // Append full path from user
+                format!("{}{}", target_backend.trim_end_matches('/'), path)
+                    .parse::<Uri>()
+            }
+            "strip" => {
+                let relative_path = if proxy.rule.r#type == "contain" && path.starts_with(&proxy.rule.path) {
+                    path.strip_prefix(&proxy.rule.path).unwrap_or("").to_string()
+                } else {
+                    "".to_string()
+                };
+                format!("{}{}", target_backend.trim_end_matches('/'), relative_path)
+                    .parse::<Uri>()
+            }
+            _ => {
+                // Fallback: treat as "none"
+                format!("{}{}", target_backend.trim_end_matches('/'), path)
+                    .parse::<Uri>()
+            }
+        }.expect("Failed to build backend URI");
         let mut new_req = Request::builder()
             .method(method)
             .uri(backend_uri)

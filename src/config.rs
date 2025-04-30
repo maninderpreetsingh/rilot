@@ -14,6 +14,8 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub override_file: Option<String>,
     pub rule: ProxyRule,
+    #[serde(default = "default_rewrite_mode")]
+    pub rewrite: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -30,4 +32,9 @@ use std::fs;
 pub fn load_config(path: &str) -> Config {
     let data = fs::read_to_string(path).expect("Failed to read config.json");
     serde_json::from_str(&data).expect("Failed to parse config.json")
+}
+
+
+fn default_rewrite_mode() -> String {
+    "none".to_string()
 }
