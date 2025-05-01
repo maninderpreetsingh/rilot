@@ -1406,6 +1406,7 @@ name = "rilot"
 version = "0.1.0"
 dependencies = [
  "hyper",
+ "once_cell",
  "serde",
  "serde_json",
  "tokio",
