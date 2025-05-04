@@ -1,143 +1,73 @@
-# Rilot
+# Rilot - A Configurable Reverse Proxy with Wasm Overrides
 
-⚡ Fast, lightweight, and pluggable reverse proxy with WebAssembly (WASM) overrides.
-Built with ❤️ in Rust for microservices, frontend multi-zone architectures, and blazing edge performance.
+⚡ Fast, lightweight, and pluggable reverse proxy with WebAssembly (WASM) overrides. Built with ❤️ in Rust for microservices, frontend multi-zone architectures, and blazing edge performance.
 
----
+## Core Features
 
-## ✨ Features
+* **Configurable Routing:** Define backends and path-based routing rules (`contain` / `exact` match) in `config.json`.
+* **Wasm Overrides:** Specify a Wasm component (`.wasm`) per rule to execute custom logic.
+* **Dynamic Modification:** Wasm modules can alter target URLs, modify request/response headers, and make external HTTP(S) calls.
+* **WASI & Component Model:** Uses WASI Preview 2 and the Component Model for host-guest interaction (currently via piped stdio).
+* **Performance:** Built on Tokio/Hyper.
+* **Conditional Wasm Loading:**
+    * **Development Mode (default):** Wasm modules are reloaded on each request for live updates ("hot-reloading").
+    * **Production Mode (`RILOT_ENV=production`):** Compiled Wasm components are cached after first use for improved performance.
 
-- 🚀 Hot-reload WebAssembly overrides (no restart needed)
-- 🛡️ Minimal memory proxy with Hyper + Tokio
-- 🔥 Per-path dynamic routing (`contain` / `exact` match)
-- 🔄 Seamless header manipulation without backend code changes
-- 📝 Fully customizable with simple `config.json`
-- ⚡ Ultra-fast cold start and live updates
-- 🛠️ Built-in Docker support(coming soon)
-- 🔒 MIT Licensed (no liability, use at your own risk)
+## Configuration (`config.json`)
 
-
----
-
-## 🛠️ How it Works
-
-Rilot acts as a **frontdoor proxy**,
-Routing based on URL paths,
-Injecting WebAssembly (WASM) modules dynamically to modify behavior without server restart.
-
-```plaintext
-[User Request]
-     ↓
-[Rilot Proxy] ──(optional WASM logic)──> [App]
-```
-
-✅ Simple.
-✅ Flexible.
-✅ Powerful.
-
----
-
-## 📦 Installation
-
-### Using NPX (coming soon)
-
-```bash
-npx rilot
-```
-
-or install globally (coming soon):
-
-```bash
-npm install -g rilot
-```
-
-### Manual (Cargo)
-
-```bash
-git clone https://github.com/maninderpreetsingh/rilot.git
-cd rilot
-cargo build --release
-```
-
----
-
-## 🚀 Quick Start Example
-
-1. Create a folder `my_app/`
-
-```plaintext
-my_app/
- ├── config.json
- ├── Dockerfile (optional) -> if you want to deploy docker container
- └── runtime/override_sample.wasm (optional) -> build wasm with (AssemblyScript / Rust / )
-```
-
-2. Example `config.json`:
+Define proxy rules and optional Wasm overrides:
 
 ```json
 {
-    "proxies": [
-        {
-            "app_name": "App 1",
-            "app_uri": "http://127.0.0.1:5502",
-            "override_file": "/path/to/override.wasm",
-            "rule": {
-                "path": "/",
-                "type": "exact"
-            }
-        },
-        {
-            "app_name": "App 2",
-            "app_uri": "http://127.0.0.1:5501/",
-            "rule": {
-                "path": "/app2",
-                "type": "contain"
-            }
-        }
-    ]
-}
-```
+  "proxies": [
+    {
+      "app_name": "My API Service",
+      "app_uri": "http://backend-service:8080",
+      "override_file": "/path/to/your/override.wasm", // Optional Wasm component
+      "rewrite": "strip", // Optional: "none" or "strip"
+      "rule": {
+        "path": "/api/",
+        "type": "contain" // "contain" or "exact"
+      }
+    },
+    {
+      "app_name": "Static Files",
+      "app_uri": "http://static-server:80/",
+      "override_file": null, // No override
+      "rewrite": "none",
+      "rule": {
+        "path": "/static/",
+        "type": "contain"
+      }
+    }
+  ]
+}```
 
-3. Run Rilot:
 
-```bash
-cargo run ./my_app/config.json
-```
+## Running
+### Development (Wasm recompiled)
+- RUST_LOG=debug ./target/debug/rilot config.json
 
-✅ Your proxy server will start at `http://127.0.0.1:8080`!
+### Production (Wasm cached)
+- RILOT_ENV=production RUST_LOG=info ./target/release/rilot config.json
 
----
+### Use default ./config.json if path omitted
+### ./target/release/rilot
 
-## ⚙️ Configuration Explained
 
-- `app_name`: Friendly name for your service
-- `app_uri`: Target backend URL
-- `override_file`: Optional WebAssembly module to override headers / routing
-- `rule.path`: URL path to match
-- `rule.type`: `"exact"` or `"contain"`
+- Set RILOT_ENV=production to enable Wasm caching.
+- Set RUST_LOG (e.g., debug, info) for logging level.
+- Set RILOT_HOST / RILOT_PORT to change listen address (defaults 127.0.0.1:8080).
 
-✅ No complicated config — simple and powerful.
+## Custom Overrides
+Use the examples directory as a template. Create a Rust library project, define your WIT interface, configure Cargo.toml, implement the logic in lib.rs, and build using `cargo component
 
----
-
-## 🔥 Live Hot-Reload of Overrides
-
-Every request dynamically loads the `.wasm` file!
-✅ No server restart needed
-✅ Modify your override logic live
-✅ Instant effect on next request
 
 ---
 
 ## License
 
 This project is licensed under the MIT License.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-
-IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY.
 
 
 ## 🙏 Acknowledgements
