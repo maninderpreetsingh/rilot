@@ -41,7 +41,8 @@ Define proxy rules and optional Wasm overrides:
       }
     }
   ]
-}```
+}
+```
 
 
 ## Running
