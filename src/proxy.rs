@@ -11,8 +11,8 @@ use hyper::{
 use hyper::service::{make_service_fn, service_fn};
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, sync::Arc, str};
 use serde::Serialize;
+use crate::{config, wasm_engine, error::Result};
 
-use crate::{config, wasm_engine};
 #[derive(Serialize)]
 struct WasmInput {
     method: String,
@@ -21,8 +21,7 @@ struct WasmInput {
     body: String,
 }
 
-
-pub async fn start_proxy(config: Arc<config::Config>) {
+pub async fn start_proxy(config: Arc<config::Config>) -> Result<()> {
     let make_svc = make_service_fn(move |_conn| {
         let cfg = config.clone();
         let config_inner = cfg.clone();
@@ -41,15 +40,18 @@ pub async fn start_proxy(config: Arc<config::Config>) {
 
     let addr = SocketAddr::new(host.parse().expect("Invalid host"), port);
 
-    println!("🚀 Rilot proxy starting at http://{}", addr);
+    log::info!("🚀 Rilot proxy starting at http://{}", addr);
     let server = Server::bind(&addr).serve(make_svc);
 
     if let Err(e) = server.await {
-        eprintln!("❌ Server error: {}", e);
+        log::error!("❌ Server error: {}", e);
+        return Err(crate::error::RilotError::ProxyError(e.to_string()));
     }
+
+    Ok(())
 }
 
-fn simple_response(status: StatusCode, body: &'static str) -> Result<Response<Body>, Infallible> {
+fn simple_response(status: StatusCode, body: &'static str) -> std::result::Result<Response<Body>, Infallible> {
     Ok(Response::builder()
         .status(status)
         .header("Content-Type", "text/plain")
@@ -60,11 +62,11 @@ fn simple_response(status: StatusCode, body: &'static str) -> Result<Response<Bo
 async fn handle_request(
     mut req: Request<Body>,
     config: Arc<config::Config>,
-) -> Result<Response<Body>, Infallible> {
+) -> std::result::Result<Response<Body>, Infallible> {
     let path = req.uri().path().to_string();
     let method = req.method().clone();
 
-    println!("➡️ Received request: {} {}", method, path);
+    log::info!("➡️ Received request: {} {}", method, path);
 
     let matched_proxy = config.proxies.iter().find(|p| {
         match p.rule.r#type.as_str() {
@@ -76,12 +78,12 @@ async fn handle_request(
     let proxy_config = match matched_proxy {
         Some(p) => p,
         None => {
-            println!("🚫 No matching proxy rule found for path: {}", path);
-            return simple_response(StatusCode::NOT_FOUND, "Not Found: No matching proxy rule.");
+            log::warn!("🚫 No matching proxy rule found for path: {}", path);
+            return simple_response(StatusCode::NOT_FOUND, "404: Not Found");
         }
     };
 
-    println!(
+    log::info!(
         "✅ Matched rule for '{}' to app '{}' ({})",
         path, proxy_config.app_name, proxy_config.app_uri
     );
@@ -99,7 +101,7 @@ async fn handle_request(
     let body_bytes = match hyper::body::to_bytes(req.body_mut()).await {
         Ok(bytes) => bytes,
         Err(e) => {
-            eprintln!("⚠️ Failed to read request body: {}", e);
+            log::error!("⚠️ Failed to read request body: {}", e);
             return simple_response(StatusCode::INTERNAL_SERVER_ERROR, "Error reading request body.");
         }
     };
@@ -107,7 +109,7 @@ async fn handle_request(
     let body_str = String::from_utf8_lossy(&body_bytes).to_string();
 
     if let Some(wasm_file) = &proxy_config.override_file {
-        println!("⚙️ Running Wasm override: {}", wasm_file);
+        log::info!("⚙️ Running Wasm override: {}", wasm_file);
         let wasm_input = WasmInput {
             method: method.to_string(),
             path: path.clone(),
@@ -118,16 +120,16 @@ async fn handle_request(
         let input_json = match serde_json::to_string(&wasm_input) {
             Ok(json) => json,
             Err(e) => {
-                eprintln!("⚠️ Failed to serialize input for Wasm: {}", e);
+                log::error!("⚠️ Failed to serialize input for Wasm: {}", e);
                 return simple_response(StatusCode::INTERNAL_SERVER_ERROR, "Error preparing Wasm input.");
             }
         };
 
         match wasm_engine::run_modify_request(wasm_file, &input_json).await {
             Ok(out) => {
-                println!("✅ Wasm execution successful. Output: {:?}", out);
+                log::info!("✅ Wasm execution successful. Output: {:?}", out);
                 if let Some(new_target) = out.app_url {
-                    println!("↪️ Overriding target URI to: {}", new_target);
+                    log::info!("↪️ Overriding target URI to: {}", new_target);
                     target_uri_str = new_target;
                 }
 
@@ -136,23 +138,23 @@ async fn handle_request(
                         HeaderName::from_bytes(k.as_bytes()),
                         HeaderValue::from_str(&v),
                     ) {
-                        println!("Adding/Updating header: {} = {}", k, v);
+                        log::info!("Adding/Updating header: {} = {}", k, v);
                         req.headers_mut().insert(name, value);
                     } else {
-                        eprintln!("⚠️ Invalid header from Wasm: {} = {}", k, v);
+                        log::error!("⚠️ Invalid header from Wasm: {} = {}", k, v);
                     }
                 }
                 for k in out.headers_to_remove {
                     if let Ok(name) = HeaderName::from_bytes(k.as_bytes()) {
-                        println!("Removing header: {}", k);
+                        log::info!("Removing header: {}", k);
                         req.headers_mut().remove(name);
                     } else {
-                        eprintln!("⚠️ Invalid header name to remove from Wasm: {}", k);
+                        log::error!("⚠️ Invalid header name to remove from Wasm: {}", k);
                     }
                 }
             }
             Err(e) => {
-                eprintln!("❌ Wasm execution failed: {}", e);
+                log::error!("❌ Wasm execution failed: {}", e);
                 return simple_response(StatusCode::INTERNAL_SERVER_ERROR, "Wasm override module failed.");
             }
         };
@@ -176,12 +178,12 @@ async fn handle_request(
     let final_uri = match Uri::try_from(&final_target_uri_str) {
         Ok(uri) => uri,
         Err(e) => {
-            eprintln!("⚠️ Failed to construct final target URI '{}': {}", final_target_uri_str, e);
+            log::error!("⚠️ Failed to construct final target URI '{}': {}", final_target_uri_str, e);
             return simple_response(StatusCode::INTERNAL_SERVER_ERROR, "Error constructing target URL.");
         }
     };
 
-    println!("🚀 Forwarding request to: {}", final_uri);
+    log::info!("🚀 Forwarding request to: {}", final_uri);
 
     *req.uri_mut() = final_uri;
     *req.body_mut() = Body::from(body_bytes); // Use original bytes
@@ -190,11 +192,11 @@ async fn handle_request(
 
     match client.request(req).await {
         Ok(backend_res) => {
-            println!("✅ Received response from backend: {}", backend_res.status());
+            log::info!("✅ Received response from backend: {}", backend_res.status());
             Ok(backend_res)
         },
         Err(e) => {
-            eprintln!("❌ Error forwarding request: {}", e);
+            log::error!("❌ Error forwarding request: {}", e);
             simple_response(StatusCode::BAD_GATEWAY, "Error connecting to upstream service.")
         }
     }
