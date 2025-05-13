@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  rilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config.json:/app/config/config.json
+      - ./wasm:/app/wasm
+    environment:
+      - RILOT_HOST=0.0.0.0
+      - RILOT_PORT=8080
+      - RILOT_LOG=debug
+      - RILOT_ENV=development
+      # You can override the config path if needed
+      # - RILOT_CONFIG_PATH=/app/config/custom-config.json
+
+networks:
+  default:
+    driver: bridge

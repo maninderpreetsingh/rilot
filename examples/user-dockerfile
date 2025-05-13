@@ -1,0 +1,18 @@
+# Use the official Rilot image
+FROM apprilot/rilot:latest
+
+# Copy your config file
+COPY config.json /app/config/config.json
+
+# Copy your WASM files if needed
+COPY wasm/*.wasm /app/wasm/
+
+# You can override environment variables if needed
+ENV RILOT_PORT=3000
+ENV RUST_LOG=info
+
+# Specify how to run Rilot with your config
+ENTRYPOINT ["rilot"]
+CMD ["/app/config/config.json"]
+
+# The container will automatically use the config at /app/config/config.json

@@ -1,4 +1,6 @@
 use serde::Deserialize;
+use crate::error::{Result, RilotError};
+use std::fs;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ProxyRule {
@@ -27,14 +29,14 @@ fn default_rule_type() -> String {
     "contain".to_string()
 }
 
-use std::fs;
-
-pub fn load_config(path: &str) -> Config {
-    let data = fs::read_to_string(path).expect("Failed to read config.json");
-    serde_json::from_str(&data).expect("Failed to parse config.json")
-}
-
-
 fn default_rewrite_mode() -> String {
     "none".to_string()
+}
+
+pub fn load_config(path: &str) -> Result<Config> {
+    let data = fs::read_to_string(path)
+        .map_err(|e| RilotError::ConfigError(format!("Failed to read config file: {}", e)))?;
+
+    serde_json::from_str(&data)
+        .map_err(|e| RilotError::ConfigError(format!("Failed to parse config file: {}", e)))
 }
